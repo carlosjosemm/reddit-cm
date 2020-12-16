@@ -1,6 +1,6 @@
 import { User } from "../entities/User";
 import { MyContext } from "../types";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from 'argon2'; 
 
 //creating the class instead of putting multiple Args
@@ -31,8 +31,21 @@ class UserResponse {
     user?: User
 }
 
+// REGISTER RESOLVER
 @Resolver()
 export class UserResolver {
+    @Query(() => User, {nullable: true})
+    async myself(
+        @Ctx() ctx: MyContext
+    ) {
+        if (!ctx.req.session.userID) {
+            return null
+        }
+        const me = await ctx.em.findOne(User, {id: ctx.req.session.userID});
+        return me;
+    }
+
+
     @Mutation(() => UserResponse)
     async register(
         @Arg('options') options: UsernamePasswordInput,
@@ -81,9 +94,12 @@ export class UserResolver {
             }}
         };
 
+        ctx.req.session.userID = user.id;
+
         return {user};
     }
 
+    // LOGIN RESOLVER
     @Mutation(() => UserResponse)
     async login(
         @Arg('options') options: UsernamePasswordInput,
@@ -98,7 +114,6 @@ export class UserResolver {
                 }],
             };
         }
-
         //comparing the pass from the db with the pass from the input (boolean)
         const passwordCheck = await argon2.verify(user.password, options.password);
         if (!passwordCheck) {
@@ -110,8 +125,8 @@ export class UserResolver {
             };
         }
 
-        return {
-            user,
-        };
+        ctx.req.session.userID = user.id;
+
+        return {user};
     }
 };

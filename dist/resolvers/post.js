@@ -56,8 +56,7 @@ let PostResolver = class PostResolver {
             try {
                 yield ctx.em.nativeDelete(Post_1.Post, { id });
             }
-            finally { }
-            ;
+            catch (_a) { }
             return true;
         });
     }
