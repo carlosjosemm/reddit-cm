@@ -5,7 +5,8 @@ import { Arg, Ctx, Int, Mutation, Query, Resolver } from "type-graphql";
 @Resolver()
 export class PostResolver {
     @Query(() => [Post])
-    posts(@Ctx() ctx: MyContext): Promise<Post[]> {
+    async posts(@Ctx() ctx: MyContext): Promise<Post[]> {
+        // await sleep(3);
         return ctx.em.find(Post, {});
     }
 
