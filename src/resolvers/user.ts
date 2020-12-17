@@ -2,6 +2,8 @@ import { User } from "../entities/User";
 import { MyContext } from "../types";
 import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from 'argon2'; 
+import { cookiename } from "../constants";
+// import {EntityManager} from '@mikro-orm/postgresql';
 
 //creating the class instead of putting multiple Args
 @InputType()
@@ -34,6 +36,7 @@ class UserResponse {
 // REGISTER RESOLVER
 @Resolver()
 export class UserResolver {
+    //MYSELF QUERY RESOLVER
     @Query(() => User, {nullable: true})
     async myself(
         @Ctx() ctx: MyContext
@@ -45,7 +48,7 @@ export class UserResolver {
         return me;
     }
 
-
+    //REGISTER RESOLVER
     @Mutation(() => UserResponse)
     async register(
         @Arg('options') options: UsernamePasswordInput,
@@ -55,7 +58,7 @@ export class UserResolver {
             return {
                 errors: [{
                     field: 'username',
-                    message: 'username must have more than 2 characters'
+                    message: 'Username must have more than 2 characters'
                 }]
             }
         };
@@ -64,7 +67,7 @@ export class UserResolver {
             return {
                 errors: [{
                     field: 'password',
-                    message: 'password must be at least 4 characters long'
+                    message: 'Password must be at least 4 characters long'
                 }]
             }
         };
@@ -74,7 +77,7 @@ export class UserResolver {
             return {
                 errors: [{
                     field: 'username',
-                    message: 'user already registered'
+                    message: 'User already registered'
                 }]
             }
         };
@@ -83,19 +86,32 @@ export class UserResolver {
         const user = ctx.em.create(User, {username: options.username, password: hiddenPassword,});
         
         try {
-        await ctx.em.persistAndFlush(user);
+            //In case the persist and flush from mikro-orm below fails, use the manual query builder:
+            // const result = await (ctx.em as EntityManager).createQueryBuilder(User).getKnexQuery().insert({
+            //     username: options.username, 
+            //     password: hiddenPassword,
+            //     create_at: new Date(), //Use underscore bc next doesnt know columns actual name as mikro-orm does
+            //     updated_at: new Date(), 
+            // }).returning("*");
+            // user = result; //DECLARE LET = USER; BEFORE THE TRY ABOVE TO AVOID ERROR
+            
+            await ctx.em.persistAndFlush(user);
         } catch (err) {
             if (err.code) {
                 return {
                 errors: [{
                     field: 'username',
-                    message: 'sorry, something went wrong!'
+                    message: 'Sorry, something went wrong!'
                 }]
             }}
         };
 
+        //setting the session and cookie for automatic login post-resgister...
+
         ctx.req.session.userID = user.id;
 
+        console.log('ctx.req.session.userID: ', ctx.req.session.userID);
+        console.log('user: ', user);
         return {user};
     }
 
@@ -110,7 +126,7 @@ export class UserResolver {
             return {
                 errors: [{
                     field: 'username',
-                    message: 'user not registered'
+                    message: 'User not registered'
                 }],
             };
         }
@@ -120,13 +136,34 @@ export class UserResolver {
             return {
                 errors: [{
                     field: 'password',
-                    message: 'incorrect user/password'
+                    message: 'Incorrect user/password'
                 }],
             };
         }
 
+        //setting the user id for the active session and respective cookie...
         ctx.req.session.userID = user.id;
 
+        console.log('ctx.req.session.userID: ', ctx.req.session.userID);
+        console.log('user: ', user);
+
         return {user};
+    }
+
+    @Mutation(() => Boolean)
+    logout(
+        @Ctx() {req, res}: MyContext
+    ) {
+        return new Promise(
+            (resolve) => req.session.destroy(err => {
+                res.clearCookie(cookiename); //clears cookie client-side even if Redis-destroy-session fails
+                if (err) {
+                    console.log(err);
+                    resolve(false);
+                    return;
+                }
+                resolve(true);
+            })
+        );
     }
 };

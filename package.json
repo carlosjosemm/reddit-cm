@@ -8,12 +8,16 @@
     "start": "node dist/server.js",
     "dev": "nodemon dist/server.js",
     "startts": "ts-node src/server.ts",
-    "mig": "mikro-orm migration:create"
+    "mig": "mikro-orm migration:create",
+    "gen": "graphql-codegen --config codegen.yml"
   },
   "author": "Carlos Moncada",
   "license": "ISC",
   "devDependencies": {
+    "@graphql-codegen/typescript": "1.19.0",
+    "@graphql-codegen/typescript-operations": "1.17.12",
     "@types/connect-redis": "^0.0.16",
+    "@types/cors": "^2.8.9",
     "@types/express": "^4.17.9",
     "@types/express-session": "^1.17.3",
     "@types/node": "^14.14.13",
@@ -30,6 +34,7 @@
     "argon2": "^0.27.1",
     "class-validator": "^0.12.2",
     "connect-redis": "^5.0.0",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "graphql": "^15.4.0",

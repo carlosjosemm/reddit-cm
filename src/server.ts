@@ -1,5 +1,5 @@
 import {MikroORM} from "@mikro-orm/core";
-import { _prod } from "./constants";
+import { cookiename, _prod } from "./constants";
 import mikroconfig from "./mikro-orm.config";
 import express from 'express';
 import {ApolloServer} from 'apollo-server-express';
@@ -12,6 +12,7 @@ import redis from 'redis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 import { MyContext } from "./types";
+import cors from 'cors';
 
 // declare module "express-session" {
 //     interface Session {
@@ -30,10 +31,16 @@ const main = async () => {
     //init Redis
     const RedisStore = connectRedis(session);
     const redisClient = redis.createClient();
-
+    //Setting cors...
+    app.use(
+        cors({
+            origin: 'http://localhost:3000' ,
+            credentials: true
+    }));
+    //Setting session...
     app.use(
         session({
-            name: 'cookie',
+            name: cookiename,
           store: new RedisStore({ client: redisClient,
             disableTouch: true,
             // disableTTL: true,
@@ -45,7 +52,7 @@ const main = async () => {
                sameSite: 'lax', //csrf ??
            },
            saveUninitialized: false,
-          secret: 'keyboard cat',
+          secret: 'somerandomsecretkey',
           resave: false,
         })
       )
@@ -59,7 +66,7 @@ const main = async () => {
         context: ({req, res}): MyContext => ({ em: orm.em, req, res }) 
     });
 
-    apolloServer.applyMiddleware({app});
+    apolloServer.applyMiddleware({app, cors:false}); //make cors false here to apply it elsewhere
 
     app.listen(4000, () => {
         console.log('server listening on localhost:4000')

@@ -28,6 +28,7 @@ exports.UserResolver = void 0;
 const User_1 = require("../entities/User");
 const type_graphql_1 = require("type-graphql");
 const argon2_1 = __importDefault(require("argon2"));
+const constants_1 = require("../constants");
 let UsernamePasswordInput = class UsernamePasswordInput {
 };
 __decorate([
@@ -83,7 +84,7 @@ let UserResolver = class UserResolver {
                 return {
                     errors: [{
                             field: 'username',
-                            message: 'username must have more than 2 characters'
+                            message: 'Username must have more than 2 characters'
                         }]
                 };
             }
@@ -92,7 +93,7 @@ let UserResolver = class UserResolver {
                 return {
                     errors: [{
                             field: 'password',
-                            message: 'password must be at least 4 characters long'
+                            message: 'Password must be at least 4 characters long'
                         }]
                 };
             }
@@ -102,7 +103,7 @@ let UserResolver = class UserResolver {
                 return {
                     errors: [{
                             field: 'username',
-                            message: 'user already registered'
+                            message: 'User already registered'
                         }]
                 };
             }
@@ -117,13 +118,15 @@ let UserResolver = class UserResolver {
                     return {
                         errors: [{
                                 field: 'username',
-                                message: 'sorry, something went wrong!'
+                                message: 'Sorry, something went wrong!'
                             }]
                     };
                 }
             }
             ;
             ctx.req.session.userID = user.id;
+            console.log('ctx.req.session.userID: ', ctx.req.session.userID);
+            console.log('user: ', user);
             return { user };
         });
     }
@@ -134,7 +137,7 @@ let UserResolver = class UserResolver {
                 return {
                     errors: [{
                             field: 'username',
-                            message: 'user not registered'
+                            message: 'User not registered'
                         }],
                 };
             }
@@ -143,13 +146,26 @@ let UserResolver = class UserResolver {
                 return {
                     errors: [{
                             field: 'password',
-                            message: 'incorrect user/password'
+                            message: 'Incorrect user/password'
                         }],
                 };
             }
             ctx.req.session.userID = user.id;
+            console.log('ctx.req.session.userID: ', ctx.req.session.userID);
+            console.log('user: ', user);
             return { user };
         });
+    }
+    logout({ req, res }) {
+        return new Promise((resolve) => req.session.destroy(err => {
+            res.clearCookie(constants_1.cookiename);
+            if (err) {
+                console.log(err);
+                resolve(false);
+                return;
+            }
+            resolve(true);
+        }));
     }
 };
 __decorate([
@@ -175,6 +191,13 @@ __decorate([
     __metadata("design:paramtypes", [UsernamePasswordInput, Object]),
     __metadata("design:returntype", Promise)
 ], UserResolver.prototype, "login", null);
+__decorate([
+    type_graphql_1.Mutation(() => Boolean),
+    __param(0, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserResolver.prototype, "logout", null);
 UserResolver = __decorate([
     type_graphql_1.Resolver()
 ], UserResolver);
