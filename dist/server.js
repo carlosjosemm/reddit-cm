@@ -22,23 +22,25 @@ const hello_1 = require("./resolvers/hello");
 const post_1 = require("./resolvers/post");
 require("reflect-metadata");
 const user_1 = require("./resolvers/user");
-const redis_1 = __importDefault(require("redis"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const express_session_1 = __importDefault(require("express-session"));
 const connect_redis_1 = __importDefault(require("connect-redis"));
 const cors_1 = __importDefault(require("cors"));
+const sendEmail_1 = require("./utils/sendEmail");
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
+    sendEmail_1.sendEmail('carlosjmoncadam@gmail.com', 'Prueba');
     const orm = yield core_1.MikroORM.init(mikro_orm_config_1.default);
     yield orm.getMigrator().up();
     const app = express_1.default();
     const RedisStore = connect_redis_1.default(express_session_1.default);
-    const redisClient = redis_1.default.createClient();
+    const redis = new ioredis_1.default();
     app.use(cors_1.default({
         origin: 'http://localhost:3000',
         credentials: true
     }));
     app.use(express_session_1.default({
         name: constants_1.cookiename,
-        store: new RedisStore({ client: redisClient,
+        store: new RedisStore({ client: redis,
             disableTouch: true,
         }),
         cookie: {
@@ -56,7 +58,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             resolvers: [hello_1.HelloResolver, post_1.PostResolver, user_1.UserResolver],
             validate: false
         }),
-        context: ({ req, res }) => ({ em: orm.em, req, res })
+        context: ({ req, res }) => ({ em: orm.em, req, res, redis })
     });
     apolloServer.applyMiddleware({ app, cors: false });
     app.listen(4000, () => {
