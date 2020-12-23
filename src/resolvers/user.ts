@@ -7,6 +7,7 @@ import { UsernamePasswordInput } from "./UsernamePasswordInput";
 import { validateRegistration } from "../utils/validateRegistration";
 import { sendEmail } from "../utils/sendEmail";
 import {v4} from 'uuid';
+// import { getConnection } from "typeorm";
 // import { Post } from "src/entities/Post";
 // import {EntityManager} from '@mikro-orm/postgresql';
 
@@ -42,7 +43,7 @@ export class UserResolver {
         if (!ctx.req.session.userID) {
             return null
         }
-        const me = await ctx.em.findOne(User, {id: ctx.req.session.userID});
+        const me = await User.findOne({id: ctx.req.session.userID});
         return me; //me takes 'User' entity types from the db query so it ca be returned as is.
     }
     //FORGOT PASSWORD RESOLVER--------------------------------
@@ -51,7 +52,7 @@ export class UserResolver {
         @Arg("email") email: string,
         @Ctx() ctx: MyContext
     ) {
-        const forgottenUser = await ctx.em.findOne(User, {email});
+        const forgottenUser = await User.findOne({where: {email }});
 
         if (!forgottenUser) {
             //Dont telling user that the email is not registered...
@@ -96,7 +97,7 @@ export class UserResolver {
             }
         };
 
-        const user = await ctx.em.findOne(User, {id: parseInt(userID)})
+        const user = await User.findOne(parseInt(userID))
         if (!user) {
             return {
                 errors: [{
@@ -107,7 +108,7 @@ export class UserResolver {
         };
 
         user.password = await argon2.hash(newPassword);
-        await ctx.em.persistAndFlush(user);
+        await User.update({id: parseInt(userID)}, {password: user.password});
 
         
 
@@ -126,49 +127,13 @@ export class UserResolver {
         @Arg('options') options: UsernamePasswordInput,
         @Ctx() ctx: MyContext
     ): Promise<UserResponse> {
-        // User data validation migrated to external file...
-        // if (options.username.length <=2) {
-        //     return {
-        //         errors: [{
-        //             field: 'username',
-        //             message: 'Username must have more than 2 characters'
-        //         }]
-        //     }
-        // };
-
-        // if (options.username.includes('@')) {
-        //     return {
-        //         errors: [{
-        //             field: 'username',
-        //             message: "Username cannot contain '@'"
-        //         }]
-        //     }
-        // };
-
-        // if (!options.email.includes('@')) {
-        //     return {
-        //         errors: [{
-        //             field: 'email',
-        //             message: 'You must enter a valid e-mail address'
-        //         }]
-        //     }
-        // };
-
-        // if (options.password.length <= 3) {
-        //     return {
-        //         errors: [{
-        //             field: 'password',
-        //             message: 'Password must be at least 4 characters long'
-        //         }]
-        //     }
-        // };
-
+        
         const ValidateError = validateRegistration(options);
         if (ValidateError) {
             return ValidateError;
         }
 
-        const existingtUser = await ctx.em.findOne(User, {username: options.username});
+        const existingtUser = await User.findOne({where: {username: options.username}});
         if (existingtUser) {
             return {
                 errors: [{
@@ -178,7 +143,7 @@ export class UserResolver {
             }
         };
 
-        const existingtEmail = await ctx.em.findOne(User, {email: options.email});
+        const existingtEmail = await User.findOne({where: {email: options.email}});
         if (existingtEmail) {
             return {
                 errors: [{
@@ -189,20 +154,16 @@ export class UserResolver {
         };
 
         const hiddenPassword = await argon2.hash(options.password);
-        const user = ctx.em.create(User, {username: options.username, password: hiddenPassword, email: options.email});
+        const user = await User.create({username: options.username, password: hiddenPassword, email: options.email}).save();
         
         try {
-            //In case the persist and flush from mikro-orm below fails, use the manual query builder:
-            // const result = await (ctx.em as EntityManager).createQueryBuilder(User).getKnexQuery().insert({
-            //     username: options.username, 
-            //     email:options.email,
-            //     password: hiddenPassword,
-            //     create_at: new Date(), //Use underscore bc next doesnt know columns actual name as mikro-orm does
-            //     updated_at: new Date(), 
-            // }).returning("*");
-            // user = result; //DECLARE LET = USER; BEFORE THE TRY ABOVE TO AVOID ERROR
-            
-            await ctx.em.persistAndFlush(user);
+            // const result = getConnection().createQueryBuilder().insert().into(User).values(
+            //     {
+            //         username: options.username,
+            //         email: options.email,
+            //         password: hiddenPassword,
+            //     }
+            // ).returning('*').execute();  
         } catch (err) {
             if (err.code) {
                 return {
@@ -213,7 +174,7 @@ export class UserResolver {
             }}
         };
 
-        //setting the session and cookie for automatic login post-resgister...
+        //setting the session and cookie for automatic login post-register...
 
         ctx.req.session.userID = user.id;
 
@@ -229,7 +190,7 @@ export class UserResolver {
         @Arg('password') password: string,
         @Ctx() ctx: MyContext
     ): Promise<UserResponse> {
-        const user = await ctx.em.findOne(User, usernameOrEmail.includes('@') ? {email: usernameOrEmail} : {username: usernameOrEmail});
+        const user = await User.findOne(usernameOrEmail.includes('@') ? {where: {email: usernameOrEmail}} : {where: {username: usernameOrEmail}});
         if (!user) {
             return {
                 errors: [{

@@ -65,13 +65,13 @@ let UserResolver = class UserResolver {
             if (!ctx.req.session.userID) {
                 return null;
             }
-            const me = yield ctx.em.findOne(User_1.User, { id: ctx.req.session.userID });
+            const me = yield User_1.User.findOne({ id: ctx.req.session.userID });
             return me;
         });
     }
     forgotPassword(email, ctx) {
         return __awaiter(this, void 0, void 0, function* () {
-            const forgottenUser = yield ctx.em.findOne(User_1.User, { email });
+            const forgottenUser = yield User_1.User.findOne({ where: { email } });
             if (!forgottenUser) {
                 console.log(forgottenUser);
                 return false;
@@ -108,7 +108,7 @@ let UserResolver = class UserResolver {
                 };
             }
             ;
-            const user = yield ctx.em.findOne(User_1.User, { id: parseInt(userID) });
+            const user = yield User_1.User.findOne(parseInt(userID));
             if (!user) {
                 return {
                     errors: [{
@@ -119,7 +119,7 @@ let UserResolver = class UserResolver {
             }
             ;
             user.password = yield argon2_1.default.hash(newPassword);
-            yield ctx.em.persistAndFlush(user);
+            yield User_1.User.update({ id: parseInt(userID) }, { password: user.password });
             ctx.req.session.userID = user.id;
             yield ctx.redis.del(constants_1.recovery_prefix + token);
             return { user };
@@ -131,7 +131,7 @@ let UserResolver = class UserResolver {
             if (ValidateError) {
                 return ValidateError;
             }
-            const existingtUser = yield ctx.em.findOne(User_1.User, { username: options.username });
+            const existingtUser = yield User_1.User.findOne({ where: { username: options.username } });
             if (existingtUser) {
                 return {
                     errors: [{
@@ -141,7 +141,7 @@ let UserResolver = class UserResolver {
                 };
             }
             ;
-            const existingtEmail = yield ctx.em.findOne(User_1.User, { email: options.email });
+            const existingtEmail = yield User_1.User.findOne({ where: { email: options.email } });
             if (existingtEmail) {
                 return {
                     errors: [{
@@ -152,9 +152,8 @@ let UserResolver = class UserResolver {
             }
             ;
             const hiddenPassword = yield argon2_1.default.hash(options.password);
-            const user = ctx.em.create(User_1.User, { username: options.username, password: hiddenPassword, email: options.email });
+            const user = yield User_1.User.create({ username: options.username, password: hiddenPassword, email: options.email }).save();
             try {
-                yield ctx.em.persistAndFlush(user);
             }
             catch (err) {
                 if (err.code) {
@@ -175,7 +174,7 @@ let UserResolver = class UserResolver {
     }
     login(usernameOrEmail, password, ctx) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield ctx.em.findOne(User_1.User, usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail });
+            const user = yield User_1.User.findOne(usernameOrEmail.includes('@') ? { where: { email: usernameOrEmail } } : { where: { username: usernameOrEmail } });
             if (!user) {
                 return {
                     errors: [{
